@@ -5,7 +5,7 @@ import time
 # --- CONFIGURATIE ---
 # Verander dit getal (de seed) om een compleet nieuwe trekking te genereren.
 # Zolang dit getal hetzelfde blijft, is de uitslag voor iedereen gelijk.
-TREKKING_SEED = 2024 
+TREKKING_SEED = 123456789 
 
 # --- Constante Data ---
 DEELNEMERS = ["Lex", "Sanne", "Sterre", "Dave", "Linde", "Nathan", "Jan", "Esther"]
