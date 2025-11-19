@@ -3,10 +3,9 @@ import random
 import time
 
 # --- CONFIGURATIE ---
-# BELANGRIJK: Verander dit getal voor de DEFINITIEVE trekking!
-# Zolang dit getal hetzelfde blijft, is de uitslag van de trekking ook exact hetzelfde,
-# zelfs als de server herstart.
-TREKKING_SEED = 123 
+# Verander dit getal (de seed) om een compleet nieuwe trekking te genereren.
+# Zolang dit getal hetzelfde blijft, is de uitslag voor iedereen gelijk.
+TREKKING_SEED = 2024 
 
 # --- Constante Data ---
 DEELNEMERS = ["Lex", "Sanne", "Sterre", "Dave", "Linde", "Nathan", "Jan", "Esther"]
@@ -24,11 +23,9 @@ CATEGORIEEN = {
 def genereer_globale_trekking(seed_waarde):
     """
     Genereert de trekking op basis van een vaste seed.
-    Omdat de seed vaststaat, is de 'random' shuffle altijd deterministisch.
-    Dit betekent: Zelfde seed = Zelfde uitslag. Altijd.
+    Hierdoor ligt de uitslag vast voor iedereen die de app bezoekt.
     """
-    
-    # We maken een specifieke random generator met de gekozen seed
+    # We gebruiken een specifieke random generator met de gekozen seed
     rng = random.Random(seed_waarde)
     
     # 1. Maak de pool van taken (2x elke categorie)
@@ -37,19 +34,15 @@ def genereer_globale_trekking(seed_waarde):
         taken_pool.append((naam, omschrijving))
         taken_pool.append((naam, omschrijving))
     
-    # 2. Schud de taken met onze vaste generator
+    # 2. Schud de taken deterministisch
     rng.shuffle(taken_pool)
     
-    # We schudden ook de deelnemers (optioneel, maar leuk voor de variatie)
-    # We gebruiken een kopie van de lijst om de originele constante niet te wijzigen
-    deelnemers_shuffle = DEELNEMERS[:] 
-    # We sorteren ze eerst om zeker te zijn dat de startpositie altijd gelijk is voor de shuffle
-    deelnemers_shuffle.sort() 
-    # rng.shuffle(deelnemers_shuffle) # Laten we de namen op alfabet laten en de taken shufflen, dat is overzichtelijker.
+    # Deelnemerslijst sorteren voor consistentie
+    deelnemers_sorted = sorted(DEELNEMERS)
     
-    # 3. Koppel ze aan elkaar in een dictionary
+    # 3. Koppel ze aan elkaar
     toewijzingen = {}
-    for i, deelnemer in enumerate(deelnemers_shuffle):
+    for i, deelnemer in enumerate(deelnemers_sorted):
         cat_naam, cat_desc = taken_pool[i]
         toewijzingen[deelnemer] = {
             "Categorie": cat_naam,
@@ -62,57 +55,66 @@ def genereer_globale_trekking(seed_waarde):
 
 st.set_page_config(page_title="Lootjestrekking", layout="centered", page_icon="🎁")
 
-st.title("🎁 Lootjestrekking")
-st.markdown(f"""
-Welkom bij de **Temu Challenge**! 
-Iedereen trekt één lootje. De trekking is vastgelegd in het systeem.
-""")
-
-# Haal de trekking op basis van de SEED
+# Haal de vaste trekking op
 uitkomst_dict = genereer_globale_trekking(TREKKING_SEED)
 
-st.markdown("---")
+# Initialiseer sessie status voor 'inloggen'
+if 'huidige_gebruiker' not in st.session_state:
+    st.session_state.huidige_gebruiker = None
+if 'toon_resultaat' not in st.session_state:
+    st.session_state.toon_resultaat = False
 
-# Stap 1: Wie ben jij?
-st.subheader("Wie ben jij?")
-geselecteerde_naam = st.selectbox(
-    "Kies je naam uit de lijst:",
-    ["Kies een naam..."] + sorted(DEELNEMERS)
-)
-
-# Sessie status om te bepalen of we het lootje moeten tonen
-if "toon_lootje" not in st.session_state:
-    st.session_state.toon_lootje = False
-if "huidige_user" not in st.session_state:
-    st.session_state.huidige_user = None
-
-# Reset knop als er van naam gewisseld wordt
-if st.session_state.huidige_user != geselecteerde_naam:
-    st.session_state.toon_lootje = False
-    st.session_state.huidige_user = geselecteerde_naam
-
-# Stap 2: Trekken
-if geselecteerde_naam != "Kies een naam...":
-    st.info(f"Hallo **{geselecteerde_naam}**! Klik op de knop hieronder om jouw opdracht te onthullen.")
+# --- SCHERM 1: INLOGGEN ---
+if st.session_state.huidige_gebruiker is None:
+    st.title("🎁 Secret Lootjestrekking")
+    st.markdown("Welkom bij de Temu Challenge! Selecteer je naam om te zien wie jij hebt getrokken.")
+    st.markdown("---")
     
-    if st.button("🔍 Onthul mijn lootje"):
-        with st.spinner('Even in de hoge hoed graaien...'):
-            time.sleep(1.0) 
-            st.session_state.toon_lootje = True
+    geselecteerde_naam = st.selectbox(
+        "Wie ben jij?",
+        ["Kies je naam..."] + sorted(DEELNEMERS)
+    )
+    
+    if st.button("Ga verder →", type="primary"):
+        if geselecteerde_naam != "Kies je naam...":
+            st.session_state.huidige_gebruiker = geselecteerde_naam
             st.rerun()
+        else:
+            st.error("Kies eerst een naam uit de lijst.")
 
-    # Stap 3: Resultaat
-    if st.session_state.toon_lootje:
-        mijn_lootje = uitkomst_dict[geselecteerde_naam]
+# --- SCHERM 2: PERSOONLIJK RESULTAAT ---
+else:
+    user = st.session_state.huidige_gebruiker
+    st.title(f"Hallo {user} 👋")
+    
+    if not st.session_state.toon_resultaat:
+        st.info("Klik op de knop hieronder om je opdracht te onthullen.")
+        
+        if st.button("🔍 Onthul mijn lootje"):
+            with st.spinner('Tromgeroffel...'):
+                time.sleep(1.5)
+                st.session_state.toon_resultaat = True
+                st.rerun()
+    
+    else:
+        # Het resultaat tonen
+        mijn_lootje = uitkomst_dict[user]
+        
+        st.success("Je lootje is getrokken!")
+        st.divider()
+        
+        st.markdown(f"<h2 style='text-align: center; color: #FF4B4B;'>{mijn_lootje['Categorie']}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-size: 18px;'><i>{mijn_lootje['Opdracht']}</i></p>", unsafe_allow_html=True)
         
         st.divider()
-        st.balloons()
-        
-        st.markdown(f"### 🎉 Jouw Categorie: **{mijn_lootje['Categorie']}**")
-        st.success(f"**Opdracht:** {mijn_lootje['Opdracht']}")
-        
-        st.warning("⚠️ **Houd dit geheim!** Vernieuw de pagina of sluit de browser om je lootje weer te verbergen.")
+        st.warning("⚠️ Houd dit geheim! Sluit dit scherm of log uit als je klaar bent.")
+
+    st.markdown("---")
+    if st.button("← Uitloggen / Terug"):
+        st.session_state.huidige_gebruiker = None
+        st.session_state.toon_resultaat = False
+        st.rerun()
 
 # --- Footer ---
 st.markdown("---")
-st.caption(f"Trekking ID: #{TREKKING_SEED} (Controlegetal)")
+st.caption(f"Lootjestrekking Temu Challenge| Seed ID: {TREKKING_SEED}")
